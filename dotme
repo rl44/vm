@@ -1,5 +1,7 @@
 
-for d in . .. ../.. ../../.. vm-info4 ../vm-info4 ../../vm-info4
+# Essaie de trouver le répertoire de base dans des chemins connus
+
+for d in . .. ../.. ../../.. vm ../vm ../../vm 
 do
 	if test -r $d/dotme
 	then
@@ -9,8 +11,14 @@ done
 
 if test "$VM_BASE" = ''
 then
-	echo dotme introuvable >&2
+	echo "***********************************************" >&2
+	echo ERREUR : dotme introuvable >&2
+	echo "***********************************************" >&2
 fi
+
+# Mise à jour des variables d'environnements nécessaires au fonctionnement
+# des scripts de lancement; voir aussi VM/Config.pm
+#
 
 if echo "$PATH" | grep -q ^"$VM_BASE/bin"
 then
@@ -32,6 +40,8 @@ else
 fi
 
 export ARCH VM_BASE PATH PERLLIB VM_ENGINE
+
+# Devrait tester un mode "quiet"...
 
 echo "VM_BASE=$VM_BASE"
 echo "ARCH=$ARCH"
