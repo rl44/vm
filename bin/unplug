@@ -1,0 +1,18 @@
+#!/usr/bin/perl
+
+use VM::Plug;
+use VM::Qemu;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id_machine = shift @ARGV;
+my $card = shift @ARGV;
+
+$card =~ s/eth//;
+
+VM::Plug::unplug($quiet, VM::Qemu->new("$id_machine"), $card);
+

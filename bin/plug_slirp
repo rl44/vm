@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+
+use VM::VDE;
+use VM::Util;
+use VM::Config;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "plug_slirp [-q] switch" unless $id;
+
+my $m = new VM::VDE($id);
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+
+&$cmd("$SLIRPVDE -d -s ".$m->socket_path()." -dhcp -x6000:/tmp/.X11-unix/X0");
+
+unless($quiet) {
+	print "Branchement d'un routeur slirp sur le switch $id\n";
+	print "    adresse du routeur : 10.0.2.2\n";
+	print "    fonctions du routeur :\n";
+	print "       - NAT (machines virtuelles -> réseau de l'hôte)\n";
+	print "       - DHCP (baux dans 10.0.2.0/24)\n";
+	print "       - redirections X-Window 10.0.2.2:0 => :0 de l'hôte\n";
+	print "\n";
+}
+

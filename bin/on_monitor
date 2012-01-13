@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+
+use VM::Qemu;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "qemu_monitor machine commande" unless $id;
+
+my $m = new VM::Qemu($id);
+
+$m->qemu_mon_cmd($ARGV[0], $quiet);
+
+print "\n" unless $quiet;
+

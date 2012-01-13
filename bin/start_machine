@@ -1,0 +1,19 @@
+#!/usr/bin/perl
+
+use VM::Qemu;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+	shift @ARGV;
+	$quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "start_machine [-q] machine" unless $id;
+
+my $m = new VM::Qemu($id);
+
+$m->start($quiet);
+
+$m->commands_from_login($quiet, "hostname $id");
+

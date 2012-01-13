@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use VM::Qemu;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+	shift @ARGV;
+	$quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "virtfs_umount -q machine mount_point" unless $id;
+
+my $mount_point = shift @ARGV;
+die "virtfs_umount -q machine mount_point" unless $mount_point;
+
+my $m = new VM::Qemu($id);
+
+$m->commands_from_login($quiet, "umount $mount_point");
+
+

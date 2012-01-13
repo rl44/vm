@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use VM::Wirefilter;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "on_wirefilter [-q] filtre [commande] [commande] ..." unless $id;
+
+my $m = new VM::Wirefilter($id);
+
+my @cmds = $ARGV[0] ? @ARGV : <STDIN>;
+grep {s/\n+$// && length($_) > 0} @cmds;
+
+$m->wirefilter_cmds($quiet, @cmds);
+

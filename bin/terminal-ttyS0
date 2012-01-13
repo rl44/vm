@@ -1,0 +1,22 @@
+#!/usr/bin/perl
+
+use VM::Config;
+use VM::Qemu;
+use VM::Util;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "terminal [-q] machine" unless $id;
+
+my $m = new VM::Qemu($id);
+
+verb "Tapez Control-O pour quitter le terminal" unless $quiet;
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+&$cmd("$SOCAT -,raw,echo=0,escape=0x0f UNIX:".$m->ttyS0_path);
+

@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use VM::Config;
+use VM::Wirefilter;
+use VM::Util;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "wirefilter_console [-q] filtre" unless $id;
+
+my $m = new VM::Wirefilter($id);
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+&$cmd("$SOCAT READLINE UNIX:".$m->management_path);
+

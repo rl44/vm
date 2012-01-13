@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use VM::Qemu;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+	shift @ARGV;
+	$quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "on machine [-q] [commande] [commande] ..." unless $id;
+
+my $m = new VM::Qemu($id);
+
+my @cmds = $ARGV[0] ? @ARGV : <STDIN>;
+grep {s/\n+$// && length($_) > 0} @cmds;
+
+$m->commands_from_login($quiet, @cmds);
+
+

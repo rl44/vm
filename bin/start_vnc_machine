@@ -1,0 +1,29 @@
+#!/usr/bin/perl
+
+use VM::Qemu;
+use VM::Config;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+	shift @ARGV;
+	$quiet = 1;
+}
+
+my $id = shift @ARGV;
+my $port = shift @ARGV; 
+
+$port += 0;
+
+die "start_vnc_machine [-q] machine [port]" unless $id;
+
+warn "TODO: image configurable";
+$BASE_IMAGE = "$VM_BASE/test3.qcow2";
+
+warn "TODO: mémoire configurable";
+$MEM = "-m 1024m";
+$QEMU = "$QEMU_LIB $QEMU_PREFIX/bin/qemu $CPU $BIOS $MEM $QEMU_OPTS";
+
+my $m = new VM::Qemu($id);
+
+$m->start_vnc($port, $quiet);
+

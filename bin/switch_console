@@ -1,0 +1,20 @@
+#!/usr/bin/perl
+
+use VM::Config;
+use VM::VDE;
+use VM::Util;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "switch_console [-q] switch" unless $id;
+
+my $m = new VM::VDE($id);
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+&$cmd("$SOCAT READLINE UNIX:".$m->management_path);
+

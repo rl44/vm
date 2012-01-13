@@ -1,0 +1,25 @@
+#!/usr/bin/perl
+
+use VM::Config;
+use VM::Qemu;
+use VM::Util;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+	shift @ARGV;
+	$quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "monitor machine" unless $id;
+
+my $m = new VM::Qemu($id);
+
+verb "Tapez Control-O pour quitter le terminal" unless $quiet;
+if($quiet) {
+	cmd_quiet("$SOCAT -,raw,echo=0,escape=0x0f UNIX:".$m->monitor_path);
+}
+else {
+	cmd("$SOCAT -,raw,echo=0,escape=0x0f UNIX:".$m->monitor_path);
+}
+

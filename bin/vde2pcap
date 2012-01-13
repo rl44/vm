@@ -1,0 +1,42 @@
+#!/usr/bin/perl
+
+use Time::HiRes qw(gettimeofday tv_interval);
+
+$| = 1;
+
+print pack('C' x 24, (0xd4, 0xc3, 0xb2, 0xa1,       # magic number
+                      0x02, 0x00,                   # version major
+		      0x04, 0x00,                   # version minor
+		      0x00, 0x00, 0x00, 0x00,       # this zone
+		      0x00, 0x00, 0x00, 0x00,       # sigfigs
+		      0xdc, 0x05, 0x00, 0x00,       # snaplen (1500)
+		      0x01, 0x00, 0x00, 0x00 ));    # linktype
+
+my $t0 = [gettimeofday];
+
+for(;;) {
+
+	my $rlen;
+	last unless sysread(STDIN, $rlen, 2) == 2;
+	my $len = unpack('n', $rlen);
+
+	my $buf;
+	my $n = sysread(STDIN, $buf, $len);
+
+	# warn "read $n / $len bytes";
+	next if($len > 1500);
+
+	my $elapsed = tv_interval($t0);
+	my $sec = int($elapsed);
+	my $usec = int(($elapsed-$sec)*1000000);
+
+	print pack('l', ($sec));
+	print pack('l', ($usec));
+	print pack('L', $len);
+	print pack('L', $len);
+
+	print $buf;
+}
+
+warn "error";
+

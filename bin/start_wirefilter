@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use VM::Wirefilter;
+use VM::VDE;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "start_wirefilter [-q] filtre switch1 switch2" unless $id;
+
+my $f = new VM::Wirefilter($id);
+
+my $switch1 = shift @ARGV;
+my $switch2 = shift @ARGV;
+
+$f->spawn_wirefilter($quiet, VM::VDE->new($switch1), VM::VDE->new($switch2));
+

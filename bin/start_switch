@@ -1,0 +1,18 @@
+#!/usr/bin/perl
+
+use VM::VDE;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "start_switch [-q] switch" unless $id;
+
+my $m = new VM::VDE($id);
+
+$m->spawn_vde($quiet);
+
+

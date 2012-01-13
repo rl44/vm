@@ -1,0 +1,18 @@
+#!/usr/bin/perl
+
+use VM::Wirefilter;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+die "stop_wirefilter [-q] switch" unless $id;
+
+my $m = new VM::Wirefilter($id);
+
+$m->wirefilter_cmds($quiet, "shutdown");
+
+

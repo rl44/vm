@@ -1,0 +1,26 @@
+#!/usr/bin/perl
+
+use VM::VDE;
+use VM::Util;
+use VM::Config;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $id = shift @ARGV;
+if(!$id or $id =~ /^-/) {
+	warn "vde_plug [-q] switch option ...";
+	cmd "$VDE_PLUG -h";
+	die;
+}
+
+my $m = new VM::VDE($id);
+my $sock_path = $m->socket_path();
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+
+&$cmd("$VDE_PLUG -s $sock_path ".join(" ", @ARGV));
+
