@@ -1,0 +1,14 @@
+
+# An English version of this README is available in the README.en file
+#
+
+Ceci est un ensemble de scripts simplifiant le déploiement d'un environnement
+virtuel basé sur :
+
+ - Qemu (http://qemu.org)
+ - VDE (http://wiki.virtualsquare.org/wiki/index.php/Main_Page)
+
+L'ensemble des scripts est fourni selon les termes de la GNU General Public
+License (voir COPYING).
+
+
