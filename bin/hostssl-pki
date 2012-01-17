@@ -19,6 +19,15 @@
 #
 #        respectivement à partir d'un CSR et d'un certificat.
 #
+#        Documenter les aspects un peu obscurs, genre que les certificats
+#        doivent avoir des CN distincts.
+#
+#        Inclure la gestion de certificats de la pki : 
+#         - renommer index.txt
+#         - en permettre l'accès
+#
+#        Tester, prévoir des tests unitaires, des exemples, ...
+#
 
 use VM::Util;
 use VM::Config;
