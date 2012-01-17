@@ -1,7 +1,8 @@
 #!/usr/bin/perl
 #
 
-# Cf. http://www.dest-unreach.org/socat/doc/socat-openssltunnel.html
+# Cf. http://www.openssl.org/docs
+#     http://www.dest-unreach.org/socat/doc/socat-openssltunnel.html
 #     http://openvpn.net/index.php/open-source/documentation/howto.html#pki
 #     http://openvpn.net/index.php/open-source/documentation/miscellaneous/77-rsa-key-management.html
 #
@@ -9,6 +10,14 @@
 # TODO : envoi des CSR (Certificate Signing Request) par mail et traitement
 #        automatique avec validation... Cf. Mail::Mailer pour l'envoi des
 #        mails et Mail::Box pour leur réception...
+#
+#        récupération de l'adresse mail :
+#
+#        openssl req -in keyname.csr -subject -noout
+#        openssl x509 -in keyname.crt -issuer -noout
+#        openssl x509 -in keyname.crt -email -noout
+#
+#        respectivement à partir d'un CSR et d'un certificat.
 #
 
 use VM::Util;
@@ -59,7 +68,7 @@ server : build a server certificate request, produces :
          keydir/keyname.csr : the certificate request (public, to be signed by
                               a valid certificate authority),
          keydir/keyname-dh$SSL_KEYSIZE : Diffie-Hellman parameters to encrypt
-                                         SSL traffic,
+                                         SSL traffic (public),
          keydir/keyname.key : the certificate private key (secret),
          keydir/keyname.crt : the signed certificate, if CA available
                               (see action=srvsign below)
@@ -69,7 +78,7 @@ srvsign : sign a server certificate, requires :
           keydir/ca.key : the private key of the signing certificate authority,
           
                                      produces :
-          keydir/keyname.crt : the signed certificate
+          keydir/keyname.crt : the signed certificate (public)
 
 client :  build a client certificate request, produces :
           keydir/keyname.csr : the certificate request (public),
@@ -82,7 +91,7 @@ sign :    sign a client certificate, requires :
           keydir/ca.key : the private key of the signing certificate authority,
 
                                      produces :
-          keydir/keyname.crt : the signed certificate
+          keydir/keyname.crt : the signed certificate (public)
 
 EOF
 }
@@ -200,6 +209,8 @@ if($action eq 'ca') {
 	 -keyout "$dest/$keyname.key" -out "$dest/$keyname.crt" \\
 	 -config "$dest/$keyname.conf" -batch -verbose})
 		or die;
+
+	!&$cmd(qq{chmod 600 "$dest/$keyname.key"}) or die;
 }
 
 if($action eq 'server') {
@@ -217,6 +228,8 @@ if($action eq 'server') {
 	 -out "$dest/$keyname.csr" -extensions server \\
 	 -config "$dest/$keyname.conf" -batch -verbose})
 	 	or die;
+
+	!&$cmd(qq{chmod 600 "$dest/$keyname.key"}) or die;
 }
 
 if($action eq 'srvsign' or ($action eq 'server' and -r "$dest/ca.key")) {
@@ -240,6 +253,8 @@ if($action eq 'client') {
 	 -out "$dest/$keyname.csr" \\
 	 -config "$dest/$keyname.conf" -batch -verbose})
 	 	or die;
+
+	!&$cmd(qq{chmod 600 "$dest/$keyname.key"}) or die;
 }
 
 if($action eq 'sign' or ($action eq 'client' and -r "$dest/ca.key")) {
