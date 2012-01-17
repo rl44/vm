@@ -1,0 +1,254 @@
+#!/usr/bin/perl
+#
+
+# Cf. http://www.dest-unreach.org/socat/doc/socat-openssltunnel.html
+#     http://openvpn.net/index.php/open-source/documentation/howto.html#pki
+#     http://openvpn.net/index.php/open-source/documentation/miscellaneous/77-rsa-key-management.html
+#
+
+# TODO : envoi des CSR (Certificate Signing Request) par mail et traitement
+#        automatique avec validation... Cf. Mail::Mailer pour l'envoi des
+#        mails et Mail::Box pour leur réception...
+#
+
+use VM::Util;
+use VM::Config;
+use strict;
+
+my $quiet = 0;
+if($ARGV[0] eq '-q') {
+        shift @ARGV;
+        $quiet = 1;
+}
+
+my $cmd = $quiet ? \&cmd_quiet : \&cmd;
+
+my $action = shift @ARGV;
+my $email = shift @ARGV;
+my $keyname = shift @ARGV;
+my $dest = shift @ARGV;
+
+$action = undef unless($action =~ m{^ca|sign|srvsign|server|client$});
+$email = undef unless($email =~ m{^[\w\s\.<]*\w+\@\w+\.[\w\.>]+$});
+
+warn "action=ca and keyname != ca" if(    $action eq 'ca'
+                                      and length($keyname)
+				      and $keyname ne 'ca');
+
+$keyname = $action unless length($keyname);
+$keyname = undef unless($keyname =~ m{^[\w\.\-\+\:]+});
+
+unless(length($action) and length($email)) {
+
+	die <<EOF;
+$0 [-q] action email [keyname] [keydir]
+
+-q = quiet
+action = ca|server|client|srvsign|sign
+email = [Firstname [...] Lastname <]email[>]
+keyname = the same as action unless specified (if action=ca, keyname != ca)
+keydir = $KEY_DIR unless specified ($KEY_DIR/keydir if keydir is relative, keydir else)
+
+Actions :
+
+ca     : build a self-signed certificate to be used as a CA root, produces :
+         keydir/ca.crt : ca certificate (public)
+	 keydir/ca.key : ca private key (secret)
+
+server : build a server certificate request, produces :
+         keydir/keyname.csr : the certificate request (public, to be signed by
+                              a valid certificate authority),
+         keydir/keyname-dh$SSL_KEYSIZE : Diffie-Hellman parameters to encrypt
+                                         SSL traffic,
+         keydir/keyname.key : the certificate private key (secret),
+         keydir/keyname.crt : the signed certificate, if CA available
+                              (see action=srvsign below)
+
+srvsign : sign a server certificate, requires :
+          keydir/keyname.csr : the certificate request,
+          keydir/ca.key : the private key of the signing certificate authority,
+          
+                                     produces :
+          keydir/keyname.crt : the signed certificate
+
+client :  build a client certificate request, produces :
+          keydir/keyname.csr : the certificate request (public),
+          keydir/keyname.key : the certificate private key (secret)
+          keydir/keyname.crt : the signed certificate, if CA available
+                               (see action=sign below)
+
+sign :    sign a client certificate, requires :
+          keydir/keyname.csr : the certificate request,
+          keydir/ca.key : the private key of the signing certificate authority,
+
+                                     produces :
+          keydir/keyname.crt : the signed certificate
+
+EOF
+}
+
+die "hostssl-generate-keys [-q] ca|server|client|srvsign|sign email [keyname] [keydir]"
+		unless length($action) and length($email) and length($dest);
+
+unless($dest =~ m{^/}) { # prepend $KEY_DIR unless absolute path
+	$dest = $KEY_DIR."/$dest";
+}
+
+my $cn;
+($cn) = $email =~ m{^(.+)[^<]+<};
+$cn = $email unless length($cn);
+
+!&$cmd(qq{mkdir -p "$dest"}) or die;
+
+# Certificate configuration (modified from easy-rsa/openssl.conf)
+#
+
+!&$cmd(qq{cat <<EOF >"$dest/$keyname.conf"
+HOME                    = $dest
+RANDFILE                = \\\$ENV::HOME/.rnd
+
+[ ca ]
+default_ca              = CA_default
+
+[ CA_default ]
+dir                     = $dest
+certs                   = \\\$dir
+crl_dir                 = \\\$dir
+database                = \\\$dir/index.txt
+new_certs_dir           = \\\$dir
+certificate             = \\\$dir/ca.crt
+serial                  = \\\$dir/serial
+crl                     = \\\$dir/crl.pem
+private_key             = \\\$dir/ca.key
+RANDFILE                = \\\$dir/.rand
+x509_extensions         = usr_cert
+default_days            = $SSL_CA_EXPIRY_DAYS
+default_crl_days        = 30
+default_md              = md5
+preserve                = no
+policy                  = policy_with_email
+
+[ policy_with_email ]
+countryName             = optional
+stateOrProvinceName     = optional
+localityName            = optional
+organizationName        = optional
+organizationalUnitName  = optional
+commonName              = supplied
+name                    = optional
+emailAddress            = supplied
+
+[req]
+default_bits            = $SSL_KEYSIZE
+prompt                  = no
+distinguished_name      = req_distinguished_name
+attributes              = req_attributes
+x509_extensions         = v3_ca
+string_mask             = nombstr
+
+[ req_distinguished_name ]
+C                       = FR
+O                       = vm
+CN                      = $cn
+emailAddress = $email
+
+[ req_attributes ]
+
+[ usr_cert ]
+basicConstraints        = CA:FALSE
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid,issuer:always
+extendedKeyUsage        = clientAuth
+keyUsage                = digitalSignature
+
+[ server ]
+basicConstraints        = CA:FALSE
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid,issuer:always
+extendedKeyUsage        = serverAuth
+keyUsage                = digitalSignature, keyEncipherment
+
+[ v3_req ]
+basicConstraints        = CA:FALSE
+keyUsage                = nonRepudiation, digitalSignature, keyEncipherment
+
+[ v3_ca ]
+subjectKeyIdentifier    = hash
+authorityKeyIdentifier  = keyid:always,issuer:always
+basicConstraints        = CA:true
+
+[ crl_ext ]
+authorityKeyIdentifier  = keyid:always,issuer:always
+EOF
+}) or die;
+
+if(!-r "$dest/index.txt") {
+	!&$cmd(qq{touch "$dest/index.txt"}) or die;
+}
+
+if(!-r "$dest/serial") {
+	!&$cmd(qq{echo 01 >"$dest/serial"}) or die;
+}
+
+if($action eq 'ca') {
+
+	# Generate a self signed certificate (-x509) $dest/ca.crt with private
+	# key $dest/ca.key to be used as a certificate authority (ca) root
+
+	!&$cmd(qq{$OPENSSL req -days $SSL_CA_EXPIRY_DAYS -nodes -new \\
+	 -newkey rsa:$SSL_KEYSIZE -sha1 -x509 \\
+	 -keyout "$dest/$keyname.key" -out "$dest/$keyname.crt" \\
+	 -config "$dest/$keyname.conf" -batch -verbose})
+		or die;
+}
+
+if($action eq 'server') {
+
+	# Generate Diffie-Hellman parameters to encrypt SSL traffic
+
+	!&$cmd(qq{$OPENSSL dhparam -out "$dest/$keyname-dh$SSL_KEYSIZE.pem" \\
+	 $SSL_KEYSIZE})
+		or die; 
+
+	# Generate a server certificate request 
+
+	!&$cmd(qq{$OPENSSL req -days $SSL_SERVER_CERT_EXPIRY_DAYS -nodes \\
+	 -newkey rsa:$SSL_KEYSIZE -keyout "$dest/$keyname.key" \\
+	 -out "$dest/$keyname.csr" -extensions server \\
+	 -config "$dest/$keyname.conf" -batch -verbose})
+	 	or die;
+}
+
+if($action eq 'srvsign' or ($action eq 'server' and -r "$dest/ca.key")) {
+
+	# Sign a server (-extensions server matching $dest/$keyname.conf)
+	# certificate request
+
+	!&$cmd(qq{$OPENSSL ca -days $SSL_SERVER_CERT_EXPIRY_DAYS \\
+	 -out "$dest/$keyname.crt" -in "$dest/$keyname.csr" \\
+	 -extensions server -md sha1 \\
+	 -config "$dest/$keyname.conf" -batch -verbose})
+		or die;
+}
+
+if($action eq 'client') {
+
+	# Generate a client certificate request
+
+	!&$cmd(qq{$OPENSSL req -batch -days $SSL_CLIENT_CERT_EXPIRY_DAYS \\
+	 -nodes -new -newkey rsa:$SSL_KEYSIZE -keyout "$dest/$keyname.key" \\
+	 -out "$dest/$keyname.csr" \\
+	 -config "$dest/$keyname.conf" -batch -verbose})
+	 	or die;
+}
+
+if($action eq 'sign' or ($action eq 'client' and -r "$dest/ca.key")) {
+
+	# Sign a client certificate request
+
+	!&$cmd(qq{$OPENSSL ca -batch -days $SSL_CLIENT_CERT_EXPIRY_DAYS \\
+	 -out "$dest/$keyname.crt" -in "$dest/$keyname.csr" -md sha1 \\
+	 -config "$dest/$keyname.conf" -batch -verbose})
+	 	or die;
+}
+

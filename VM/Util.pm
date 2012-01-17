@@ -30,6 +30,7 @@ sub _cmd {
 	elsif($? != 0) {
 		warn 'cmd(): exit('.($? >> 8).')';
 	}
+	return $?;
 }
 
 sub cmd {
