@@ -1,0 +1,114 @@
+#!/bin/bash
+#
+
+# Répertoire temporaire pour stocker les clés
+#
+
+KEYBASE=/tmp/keys."$(uuidgen -t)"
+mkdir -p "$KEYBASE"
+
+# Création d'identités
+#
+
+function check_ca() {
+
+	# Création d'une CA
+	#
+
+	check ca 'hostssl-pki ca "$ca_MAIL" "$ca_KEYNAME" "$ca_KEYDIR"' \
+		"Création d'une CA"
+}
+
+function check_server() {
+
+	local server_name="$1"
+
+	eval local email=\$${server_name}_MAIL
+	eval local keydir=\$${server_name}_KEYDIR
+	eval local keyname=\$${server_name}_KEYNAME
+
+	# Création d'une clé serveur
+	#
+
+	check "${server_name}_privkey" \
+		"hostssl-pki server '$email' '$keyname' '$keydir'" \
+		"Création d'une clé serveur pour \"$email\""
+
+	# Signature de la clé par la CA
+	#
+
+	check "${server_name}_csr" \
+		"cp '$keydir/$keyname.csr' '$KEYBASE/ca/'" \
+		"Transfert de la demande de clé de \"$email\" vers la CA"
+
+	check "${server_name}_srvsign" \
+		"hostssl-pki srvsign '$ca_MAIL' '$keyname' '$ca_KEYDIR'" \
+		"Signature de la clé de \"$email\" par la CA"
+
+	# Transfert du certificat signé et du certificat de la CA vers le
+	# serveur
+	#
+
+	check "${server_name}_crt" \
+		"cp '$KEYBASE/ca/ca.crt' '$KEYBASE/ca/$keyname.crt' '$keydir'/" \
+		"Transfert des certificats du CA vers \"$email\""
+
+	# Création d'un PEM (contenant certificat + clé privée) pour le serveur
+	#
+
+	check "${server_name}_pem" \
+		"hostssl-pki pem '$email' '$keyname' '$keydir'" \
+		"Création d'un PEM (certificat+clé privée) pour \"$email\""
+}
+
+function check_client() {
+
+	local client_name="$1"
+
+	eval local email=\$${client_name}_MAIL
+	eval local keydir=\$${client_name}_KEYDIR
+	eval local keyname=\$${client_name}_KEYNAME
+
+	# Création d'une clé client
+	#
+
+	check "${client_name}_privkey" \
+		"hostssl-pki client '$email' '$keyname' '$keydir'" \
+		"Création d'une clé client pour \"$email\""
+
+	# Signature de la clé par la CA
+	#
+
+	check "${client_name}_csr" \
+		"cp '$keydir/$keyname.csr' '$KEYBASE/ca/'" \
+		"Transfert de la demande de clé de \"$email\" vers la CA"
+
+	check "${client_name}_sign" \
+		"hostssl-pki sign '$ca_MAIL' '$keyname' '$ca_KEYDIR'" \
+		"Signature de la clé de \"$email\" par la CA"
+
+	# Transfert du certificat signé et du certificat de la CA vers le
+	# client
+	#
+
+	check "${client_name}_crt" \
+		"cp '$KEYBASE/ca/ca.crt' '$KEYBASE/ca/$keyname.crt' '$keydir'/" \
+		"Transfert des certificats du CA vers \"$email\""
+
+
+	# Création d'un PEM (contenant certificat + clé privée) pour le client
+	#
+
+	check "${client_name}_pem" \
+		"hostssl-pki pem '$email' '$keyname' '$keydir'" \
+		"Création d'un PEM (certificat+clé privée) pour \"$email\""
+}
+
+# Nettoyage
+#
+
+function cleanup() {
+
+	rm -fr "$KEYBASE"
+}
+

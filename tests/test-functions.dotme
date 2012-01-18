@@ -1,0 +1,94 @@
+#!/bin/bash
+#
+
+tested=""
+pass=""
+failed=""
+
+function check() {
+
+	local t="$1"
+	local cmd="$2"
+	local comment="$3"
+
+	echo
+	echo "### Test $t"
+	echo "###"
+	echo "$comment" | sed 's/^/### /'
+	echo "###"
+	echo
+
+	echo "$cmd"
+	eval $cmd
+	if test "$?" -eq 0
+	then
+		echo pass
+		pass="$pass $t"
+	else
+		echo FAILED
+		failed="$failed $t"
+	fi
+
+	tested="$tested $t"
+}
+
+function results() {
+
+	local t=""
+	local not_pass_count=0
+	local total=0
+
+	echo
+	echo "######################"
+	echo "### Results :"
+	echo "###"
+	echo
+
+	for t in $tested
+	do
+		echo -n "$t "
+
+		local t2=""
+		local t3=""
+
+		let not_pass_count++
+
+		for t2 in $failed
+		do
+			if test "$t" = "$t2"
+			then
+				echo FAILED
+				t3="$t2"
+				break
+			fi
+		done
+		if test "$t3" = ""
+		then
+			for t2 in $pass
+			do
+				if test "$t" = "$t2"
+				then
+					echo pass
+					let not_pass_count--
+					t3="$t2"
+					break
+				fi
+			done
+		fi
+		if test "$t3" = ""
+		then
+			echo unknown
+		fi
+		let total++
+	done
+
+	local pass_count
+	let pass_count=total-not_pass_count
+
+	echo
+	echo "$pass_count / $total tests successfull"
+	echo
+
+	return $not_pass_count
+}
+
