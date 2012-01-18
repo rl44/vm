@@ -43,16 +43,8 @@ check_client client2
 
 # <TBC>
 
-# TODO : améliorer le contrôle du démarrage du serveur en daemon (trap SIGCHILD,#        wait, ...), tel quel, le test sera toujours positif.
-#
-
-check socat_ssl_server1 \
- "$SOCAT EXEC:'echo cookie' openssl-listen:4443,reuseaddr,cert='$server1_KEYDIR'/'$server1_KEYNAME'.pem,cafile='$server1_KEYDIR'/ca.crt &" \
- "Démarrage d'un socat en mode serveur SSL"
-
-check socat_ssl_client1 \
- "$SOCAT openssl:localhost:4443,cert='$client1_KEYDIR'/'$client1_KEYNAME'.pem,cafile='$client1_KEYDIR'/ca.crt stdio | grep cookie" \
- "Démarrage d'un client en mode client SSL"
+check_socat_server socat_server1 server1
+check_socat_client socat_client1 client1
 
 # Ajouter des tests pour vérifier la vérification des certificats; tester le
 # cas des certificats certifiés par des certificats clients et serveurs eux

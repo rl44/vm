@@ -23,9 +23,9 @@ function check_server() {
 
 	local server_name="$1"
 
-	eval local email=\$${server_name}_MAIL
-	eval local keydir=\$${server_name}_KEYDIR
-	eval local keyname=\$${server_name}_KEYNAME
+	eval local email=\"\$${server_name}_MAIL\"
+	eval local keydir=\"\$${server_name}_KEYDIR\"
+	eval local keyname=\"\$${server_name}_KEYNAME\"
 
 	# Création d'une clé serveur
 	#
@@ -65,9 +65,9 @@ function check_client() {
 
 	local client_name="$1"
 
-	eval local email=\$${client_name}_MAIL
-	eval local keydir=\$${client_name}_KEYDIR
-	eval local keyname=\$${client_name}_KEYNAME
+	eval local email=\"\$${client_name}_MAIL\"
+	eval local keydir=\"\$${client_name}_KEYDIR\"
+	eval local keyname=\"\$${client_name}_KEYNAME\"
 
 	# Création d'une clé client
 	#
@@ -102,6 +102,42 @@ function check_client() {
 	check "${client_name}_pem" \
 		"hostssl-pki pem '$email' '$keyname' '$keydir'" \
 		"Création d'un PEM (certificat+clé privée) pour \"$email\""
+}
+
+# SSL avec la commande socat
+#
+
+function check_socat_server() {
+
+	local test_name="$1"
+	local server_name="$2"
+
+	eval local email=\"\$${server_name}_MAIL\"
+	eval local keydir=\"\$${server_name}_KEYDIR\"
+	eval local keyname=\"\$${server_name}_KEYNAME\"
+
+	check $test_name "'$SOCAT' EXEC:'echo cookie' openssl-listen:4443,reuseaddr,cert='$keydir/$keyname.pem',cafile='$keydir/ca.crt' & ${test_name}_pid=$!" \
+		"Démarrage d'un socat en mode serveur SSL pour \"$email\""
+	
+	# teste si le serveur a démarré correctement
+
+	check "${test_name}_started" \
+		"sleep 1 && lsof -n -i :4443 -s TCP:LISTEN -Fc | grep socat" \
+		"Le serveur socat $test_name ($server_name) est démarré correctement"
+}
+
+check_socat_client() {
+
+	local test_name="$1"
+	local client_name="$2"
+
+	eval local email=\"\$${client_name}_MAIL\"
+	eval local keydir=\"\$${client_name}_KEYDIR\"
+	eval local keyname=\"\$${client_name}_KEYNAME\"
+
+	check $test_name "'$SOCAT' openssl:localhost:4443,cert='$keydir/$keyname.pem',cafile='$keydir/ca.crt' stdio | grep cookie" \
+		"Démarrage d'un socat en mode client SSL pour \"$email\""
+
 }
 
 # Nettoyage
