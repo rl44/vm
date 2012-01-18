@@ -1,5 +1,6 @@
 
 - bootstrap : chargement des images, autoconfiguration
 - documentation
-- traductions en anglais
+- localisation (traduction des messages en anglais et en français), cf.
+  I18N::LangTags
 
