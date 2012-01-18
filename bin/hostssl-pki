@@ -28,6 +28,10 @@
 #
 #        Tester, prévoir des tests unitaires, des exemples, ...
 #
+#        Associer les Diffie-Hellman parameters aux certificats serveurs
+#
+#        Générer des CRL (Certificate Revocation Lists), voir l'option
+#        -gencrl de openssl ca
 
 use VM::Util;
 use VM::Config;
@@ -46,8 +50,10 @@ my $email = shift @ARGV;
 my $keyname = shift @ARGV;
 my $dest = shift @ARGV;
 
-$action = undef unless($action =~ m{^ca|sign|srvsign|server|client$});
+$action = undef unless($action =~ m{^ca|sign|srvsign|server|client|pem$});
 $email = undef unless($email =~ m{^[\w\s\.<]*\w+\@\w+\.[\w\.>]+$});
+
+# TODO : ne pas coder en dur que le nom du CA est "ca"
 
 warn "action=ca and keyname != ca" if(    $action eq 'ca'
                                       and length($keyname)
@@ -56,13 +62,18 @@ warn "action=ca and keyname != ca" if(    $action eq 'ca'
 $keyname = $action unless length($keyname);
 $keyname = undef unless($keyname =~ m{^[\w\.\-\+\:]+});
 
-unless(length($action) and length($email)) {
+unless($dest =~ m{^/}) { # prepend $KEY_DIR unless absolute path
+	$dest = $KEY_DIR."/$dest";
+}
+
+unless(    length($action) and length($email)
+       and ((-d "$dest" and -w "$dest") or !&$cmd(qq{mkdir -p "$dest"}))) {
 
 	die <<EOF;
 $0 [-q] action email [keyname] [keydir]
 
 -q = quiet
-action = ca|server|client|srvsign|sign
+action = ca|server|client|srvsign|sign|pem
 email = [Firstname [...] Lastname <]email[>]
 keyname = the same as action unless specified (if action=ca, keyname != ca)
 keydir = $KEY_DIR unless specified ($KEY_DIR/keydir if keydir is relative, keydir else)
@@ -102,21 +113,83 @@ sign :    sign a client certificate, requires :
                                      produces :
           keydir/keyname.crt : the signed certificate (public)
 
+pem :     outputs a certificate + private key in PEM format, requires :
+
+          keydir/keyname.crt : a (signed) public certificate,
+	  keydir/keyname.key : the corresponding private key,
+
+                                                             produces :
+
+	  keydir/keyname.pem : the certificate + private key in PEM format
+	                       (secret)
+
+Certificates authorities
+
+          should carry : keydir/ca.key (kept secret),
+	                 keydir/ca.crt (can be revealed),
+
+	  should give a copy of keydir/ca.crt to parties (client or server)
+	  to allow them prove their identity against keydir/ca.key,
+
+	  should sign keydir/keyname.csr (client or server) certificate signing
+	  requests, this needs the keydir/ca.key secret key,
+
+	  should give a copy of keydir/keyname.crt signed (client or server)
+	  certificate to parties to allow them prove their identity against
+	  keydir/ca.key,
+
+	  parties (client or server) may use keydir/keyname.crt as a
+	  certificate authority (untested).
+
+A server
+
+          should carry : keydir/keyname.key (kept secret),
+	                 keydir/keyname.csr (can be revealed),
+	                 keydir/keyname.crt (can be revealed),
+			 keydir/keyname.pem (optional, kept secret),
+			 keydir/keyname-dh$SSL_KEYSIZE.pem (optional,
+			                                    can be revealed),
+			 keydir/ca.crt (can be revealed),
+
+          should give a copy of keydir/keyname.csr server certificate signing
+	  request to be signed by the certificate authority against its
+	  keydir/ca.key matching the server's keydir/ca.crt,
+
+	  should get a copy of keydir/keyname.crt signed certificate from the
+	  certificate authority, allowing the server to prove its identity
+	  against keydir/ca.crt,
+
+	  should use either (keydir/keyname.key + keydir/keyname.crt) or
+          keydir/keyname.pem (which is the concatenation of the two formers)
+	  to prove its own identity against keydir/ca.crt,
+
+          may use keydir/keyname-dh$SSL_KEYSIZE.pem to cipher SSL traffic
+
+A client
+          should carry : keydir/keyname.key (kept secret),
+	                 keydir/keyname.csr (can be revealed),
+	                 keydir/keyname.crt (can be revealed),
+			 keydir/keyname.pem (optional, kept secret),
+			 keydir/ca.crt (can be revealed),
+
+          should give a copy of keydir/keyname.csr server certificate signing
+	  request to be signed by the certificate authority against its
+	  keydir/ca.key matching the server's keydir/ca.crt,
+
+	  should get a copy of keydir/keyname.crt signed certificate from the
+	  certificate authority, allowing the server to prove its identity
+	  against keydir/ca.crt,
+
+	  should use either (keydir/keyname.key + keydir/keyname.crt) or
+          keydir/keyname.pem (which is the concatenation of the two formers)
+	  to prove its own identity against keydir/ca.crt,
+
 EOF
-}
-
-die "hostssl-generate-keys [-q] ca|server|client|srvsign|sign email [keyname] [keydir]"
-		unless length($action) and length($email) and length($dest);
-
-unless($dest =~ m{^/}) { # prepend $KEY_DIR unless absolute path
-	$dest = $KEY_DIR."/$dest";
 }
 
 my $cn;
 ($cn) = $email =~ m{^(.+)[^<]+<};
 $cn = $email unless length($cn);
-
-!&$cmd(qq{mkdir -p "$dest"}) or die;
 
 # Certificate configuration (modified from easy-rsa/openssl.conf)
 #
@@ -274,5 +347,18 @@ if($action eq 'sign' or ($action eq 'client' and -r "$dest/ca.key")) {
 	 -out "$dest/$keyname.crt" -in "$dest/$keyname.csr" -md sha1 \\
 	 -config "$dest/$keyname.conf" -batch -verbose})
 	 	or die;
+}
+
+if($action eq 'pem') {
+
+	# Build a certificate in PEM format including the corresponding
+	# private key
+	#
+	# http://www.dest-unreach.org/socat/doc/socat-openssltunnel.html
+
+	!&$cmd(qq{cat "$dest/$keyname.key" "$dest/$keyname.crt" \\
+	 >"$dest/$keyname.pem"}) or die;
+
+	!&$cmd(qq{chmod 600 "$dest/$keyname.pem"});
 }
 
