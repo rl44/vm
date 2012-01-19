@@ -22,7 +22,8 @@
 #
 
 my $SCRIPT_BASE_GIT_URL = 'http://github.com/rl44/vm';
-my $SCRIPT_BASE_RAW_URL = 'https://raw.github.com/rl44/vm/master/dists/current.tar.gz';
+# my $SCRIPT_BASE_RAW_URL = 'https://raw.github.com/rl44/vm/master/dists/current.tar.gz';
+my $SCRIPT_BASE_RAW_URL = 'http://ubuntuone.com/4Ew4g6z9J9y0HG33FaeO3b';
 
 # sortie de find . -type f | cut -c3- | sed 's/^/q{/;s/$/},/' | grep -v .git
 my @BASE_CONTENTS = (
@@ -52,7 +53,6 @@ my @BASE_CONTENTS = (
 		q{bin/start_machine},
 		q{bin/vde2pcap},
 		q{bin/stop_wirefilter},
-		q{bin/hostssl-generate-keys.0},
 		q{bin/vde_plug},
 		q{README.en},
 		q{dotme},
@@ -181,12 +181,29 @@ sub ensure_command {
 
 unless(ensure_file("bootstrap.pl")) {
 
- if(0) {
 	if(ensure_command('git --version', qr{^git version \d}, 'git')) {
+
+		# git clone dans un répertoire "vm"
+		#
+
+		print "chdir to .. ...";
+		if(chdir('..')) {
+			print "ok\n";
+		}
+		else {
+			die(qq{chdir(".."): $!});
+		}
 		print "git clone $SCRIPT_BASE_GIT_URL ...\n";
 		system(qq{git clone "$SCRIPT_BASE_GIT_URL"});
+		print "chdir to vm ...";
+		if(chdir('vm')) {
+			print "ok\n";
+		}
+		else {
+			die(qq{chdir(".."): $!});
+		}
 	}
- }
+
 	unless(ensure_file("bootstrap.pl")) {
 
 			print "Downloading ...\n";
