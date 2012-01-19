@@ -140,6 +140,90 @@ check_socat_client() {
 
 }
 
+# Serveur stunnel4
+#
+
+function check_stunnel_server_start() {
+
+	local test_name="$1"
+	local server_name="$2"
+
+	eval local email=\"\$${server_name}_MAIL\"
+	eval local keydir=\"\$${server_name}_KEYDIR\"
+	eval local keyname=\"\$${server_name}_KEYNAME\"
+
+	local stunnel_pidfile="/tmp/$server_name.pid"
+	local stunnel_conf="/tmp/$server_name.conf"
+
+	cat >"$stunnel_conf" <<EOF
+; global options
+;;; stunnel4 server config
+;;;
+
+cert = $keydir/$keyname.pem
+CAfile = $keydir/ca.crt
+debug = 7
+;foreground = yes
+pid = $stunnel_pidfile
+;socket = l:TCP_NODELAY=1
+socket = r:TCP_NODELAY=1
+options = ALL
+options = NO_SSLv2
+verify = 2
+[$server_name]
+accept = 0.0.0.0:4443
+connect = 0.0.0.0:44443
+EOF
+
+	local socat_pidfile="/tmp/$server_name-socatbg.pid"
+
+	# WORKAROUND : stunnel4 semble buggé (Ubuntu oneiric (11.10) amd64),
+	# avec l'option exec, contournement avec connexion stunnel4->socat
+	#
+
+	check "${test_name}_socatbg" \
+		"'$SOCAT' TCP4-LISTEN:44443,fork,reuseaddr EXEC:'echo cookie' & echo \$! >'$socat_pidfile'" \
+		"Démarrage d'un serveur socat de fond"
+
+	check $test_name \
+		"cat '$stunnel_conf' && '$STUNNEL' '$stunnel_conf'" \
+		"Démarrage d'un serveur stunnel pour \"$email\""
+}
+
+function check_stunnel_server_started() {
+
+	local test_name="$1"
+	local server_name="$2"
+
+        check "${test_name}_started" \
+		"sleep 1 && lsof -n -i :4443 -s TCP:LISTEN -Fc | grep stunnel" \
+		"Le serveur stunnel $test_name ($server_name) est démarré correctement"
+}
+
+function check_stunnel_server_stop() {
+
+	local test_name="$1"
+	local server_name="$2"
+
+	local stunnel_pidfile="/tmp/$server_name.pid"
+	
+	check "${test_name}_stop" \
+		"${server_name}_pid=\"\$(cat '$stunnel_pidfile')\" && test -n \"\$${server_name}_pid\" && kill \"\$${server_name}_pid\"" \
+		"Arrêt du serveur stunnel $test_name ($server_name)"
+
+	local stunnel_conf="/tmp/$server_name.conf"
+
+	check "${test_name}_cleanup" \
+		"rm -f '$stunnel_pidfile' '$stunnel_conf'" \
+		"Suppression des fichiers temporaires du serveur stunnel $test_name ($server_name)"
+
+	local socat_pidfile="/tmp/$server_name-socatbg.pid"
+
+	# TODO : arrêter le serveur socat proprement...
+	#
+
+}
+
 # Nettoyage
 #
 

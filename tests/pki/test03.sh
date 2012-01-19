@@ -1,42 +1,55 @@
+#!/bin/bash
+#
 
-# TBC
+# Idem test02.sh mais avec un serveur stunnel4
+#
 
-# stunnel avec le fichier de config du type
+. ../../dotme
+. ../test-functions.dotme
+. test-ssl.dotme
 
-; Lines preceded with a “;” are comments
-; Empty lines are ignored
-; For more options and details: see the manual (stunnel.html)
+# Identités
+#
 
-; File with certificate and private key
-cert = /tmp/keys.175370dc-421e-11e1-bb98-00012e2ffaf6/server1/server1.pem
-; CApath = /tmp/keys.175370dc-421e-11e1-bb98-00012e2ffaf6/server1
-CAfile = /tmp/keys.175370dc-421e-11e1-bb98-00012e2ffaf6/server1/ca.crt
+ca_MAIL='ca <ca@test.me>'
+server1_MAIL='server 1 <server1@test.me>'
+client1_MAIL='client 1 <client1@test.me>'
+client2_MAIL='client 2 <client2@test.me>'
 
-; Log (1= minimal, 5=recommended, 7=all) and log file)
-; Preceed with a “;” to disable logging
-debug = 5
-foreground = yes
-pid = /tmp/stunnel-server.pid
-; output = stunnel.log
+# Répertoires de clés (séparés)
+#
 
-; Some performance tuning
-socket = l:TCP_NODELAY=1
-socket = r:TCP_NODELAY=1
+ca_KEYDIR="$KEYBASE"/ca
+server1_KEYDIR="$KEYBASE"/server1
+client1_KEYDIR="$KEYBASE"/client1
+client2_KEYDIR="$KEYBASE"/client2
 
-; Data compression algorithm: zlib or rle
-; compression = zlib
+# Noms de clés
+#
 
-; SSL bug options / NO SSL:v2 (SSLv3 and TLSv1 is enabled)
-options = ALL
-options = NO_SSLv2
-verify = 2
+ca_KEYNAME=ca
+server1_KEYNAME=server1
+client1_KEYNAME=client1
+client2_KEYNAME=client2
 
-; Service-level configuration
-; Stunnel listens to port 443 (HTTPS) to any IP
-; and connects to port 44300 (HFS) on localhost
-[test]
-accept = 0.0.0.0:4443
-connect = 127.0.0.1:44300
-TIMEOUTclose = 0 
+STUNNEL=stunnel4
+SOCAT=socat
+
+check_ca
+check_server server1
+check_client client1
+check_client client2
+
+check_stunnel_server_start stunnel_server1 server1
+check_stunnel_server_started stunnel_server1 server1
+
+check_socat_client socat_client1 client1
+check_socat_client socat_client2 client2
+
+check_stunnel_server_stop stunnel_server1 server1
+
+results
+
+# cleanup
 
 
