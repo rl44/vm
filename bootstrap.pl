@@ -18,6 +18,64 @@
 # FIXME : permettre que l'interpréteur perl soit ailleurs que dans /usr/bin/perl
 #         à modifier dans bin/*
 #
+# TBC ...
+#
+
+my $SCRIPT_BASE_GIT_URL = 'http://github.com/rl44/vm';
+my $SCRIPT_BASE_RAW_URL = 'https://raw.github.com/rl44/vm/master/dists/current.tar.gz';
+
+# sortie de find . -type f | cut -c3- | sed 's/^/q{/;s/$/},/' | grep -v .git
+my @BASE_CONTENTS = (
+		q{bootstrap.pl},
+		q{bin/monitor},
+		q{bin/virtfs_umount},
+		q{bin/start_switch},
+		q{bin/on_monitor},
+		q{bin/plug_usb},
+		q{bin/terminal-ttyS0},
+		q{bin/wirefilter_console},
+		q{bin/start_vnc_machine},
+		q{bin/switch_console},
+		q{bin/start_wirefilter},
+		q{bin/on},
+		q{bin/terminal},
+		q{bin/on_switch},
+		q{bin/virtfs_mount},
+		q{bin/stop_switch},
+		q{bin/unplug_usb},
+		q{bin/plug},
+		q{bin/hostssl-pki},
+		q{bin/on_wirefilter},
+		q{bin/unplug},
+		q{bin/plug_slirp},
+		q{bin/stop_machine},
+		q{bin/start_machine},
+		q{bin/vde2pcap},
+		q{bin/stop_wirefilter},
+		q{bin/hostssl-generate-keys.0},
+		q{bin/vde_plug},
+		q{README.en},
+		q{dotme},
+		q{Changelog},
+		q{VM/Plug.pm},
+		q{VM/Config.pm},
+		q{VM/VDE.pm},
+		q{VM/Qemu.pm},
+		q{VM/Util.pm},
+		q{VM/Wirefilter.pm},
+		q{TODO},
+		q{keys/index.txt},
+		q{keys/server1.conf},
+		q{keys/serial},
+		q{exemples/exemple01.sh},
+		q{COPYING},
+		q{README},
+		q{tests/test-functions.dotme},
+		q{tests/pki/test02.sh},
+		q{tests/pki/test-ssl.dotme},
+		q{tests/pki/test03.sh},
+		q{tests/pki/test01.sh},
+);
 
 my $verbose = 1;
 $verbose = undef if grep {/-q/} @ARGV;
@@ -74,14 +132,41 @@ print "ok\n" if $verbose;
 # et à l'exécution des composants
 #
 
+unless(ensure_command(q{socat -V},
+                      qr{socat version 1\.7|socat version 2}s,
+		              q{socat version}))        { 
+
+	# TODO : faire mieux que ça...
+	#
+
+	warn("install socat by your own (with SSL support)\n");
+	die("socat >= v1.7 needed");
+}
+
+unless(ensure_command(q{socat -h},
+                      q{openssl:},
+		              q{socat compiled with OpenSSL})) {
+
+	warn("socat with SSL support needed for some functions");
+}
+
+unless(ensure_command(q{wget --version}, qr{GNU [Ww]get \d}s, q{wget})) {
+
+	die("wget required by this installer");
+}
+
 sub ensure_command {
 
     my $command = shift;
     my $expected_output = shift;
+    my $comment = shift;
 
-    print "Checking for $command... " if $verbose;
+    $comment = $command unless length($comment);
+
+    print "Checking for $comment... " if $verbose;
     my $output = qx{$command 2>&1};
-    if($command =~ m{$expected_output}) {
+
+    if($output =~ m{$expected_output}g) {
         print "ok\n" if $verbose;
         return 1;
     }
@@ -91,4 +176,41 @@ sub ensure_command {
     }
 }
 
+# Files
+#
+
+unless(ensure_file("bootstrap.pl")) {
+
+ if(0) {
+	if(ensure_command('git --version', qr{^git version \d}, 'git')) {
+		print "git clone $SCRIPT_BASE_GIT_URL ...\n";
+		system(qq{git clone "$SCRIPT_BASE_GIT_URL"});
+	}
+ }
+	unless(ensure_file("bootstrap.pl")) {
+
+			print "Downloading ...\n";
+			system(qq{wget -O- "$SCRIPT_BASE_RAW_URL" | tar xvfz -});
+			for my $f (@BASE_CONTENTS) {
+					unless(ensure_file("$f")) {
+						die "Error downloading $f";
+					}
+			}
+	}
+}
+
+sub ensure_file {
+
+	my $path = shift;
+
+    print "Checking for $path... " if $verbose;
+	if(-r "$path") {
+		print "ok\n";
+		return 1;
+	}
+	else {
+		print "not found\n";
+		return 0;
+	}
+}
 
