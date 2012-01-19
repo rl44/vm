@@ -116,7 +116,7 @@ function check_socat_server() {
 	eval local keydir=\"\$${server_name}_KEYDIR\"
 	eval local keyname=\"\$${server_name}_KEYNAME\"
 
-	check $test_name "'$SOCAT' EXEC:'echo cookie' openssl-listen:4443,reuseaddr,cert='$keydir/$keyname.pem',cafile='$keydir/ca.crt' & ${test_name}_pid=$!" \
+	check $test_name "'$SOCAT' EXEC:'echo cookie' openssl-listen:4443,reuseaddr,cert='$keydir/$keyname.pem',cafile='$keydir/ca.crt' & ${test_name}_pid=\$!" \
 		"Démarrage d'un socat en mode serveur SSL pour \"$email\""
 	
 	# teste si le serveur a démarré correctement
