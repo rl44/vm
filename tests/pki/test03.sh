@@ -50,6 +50,6 @@ check_stunnel_server_stop stunnel_server1 server1
 
 results
 
-# cleanup
+cleanup
 
 
